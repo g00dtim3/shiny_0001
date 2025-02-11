@@ -1,0 +1,49 @@
+library(shiny)
+library(httr)
+library(jsonlite)
+
+# Define UI
+ui <- fluidPage(
+    titlePanel("Chat with OpenAI"),
+    sidebarLayout(
+        sidebarPanel(
+            textInput("prompt", "Enter your prompt:", "Hello, how are you?"),
+            actionButton("submit", "Send")
+        ),
+        mainPanel(
+            verbatimTextOutput("response")
+        )
+    )
+)
+
+# Define Server
+server <- function(input, output) {
+    openai_api_key <- "YOUR_OPENAI_API_KEY"  # Replace with your key or use an environment variable
+    
+    observeEvent(input$submit, {
+        req(input$prompt)
+        
+        response <- tryCatch({
+            res <- POST(
+                url = "https://api.openai.com/v1/chat/completions",
+                add_headers(Authorization = paste("Bearer", openai_api_key)),
+                content_type_json(),
+                body = toJSON(list(
+                    model = "gpt-4",
+                    messages = list(list(role = "user", content = input$prompt)),
+                    temperature = 0.7
+                ), auto_unbox = TRUE)
+            )
+            
+            res_text <- fromJSON(content(res, "text", encoding = "UTF-8"))
+            res_text$choices[[1]]$message$content
+        }, error = function(e) {
+            paste("Error:", e$message)
+        })
+        
+        output$response <- renderText({ response })
+    })
+}
+
+# Run the app
+shinyApp(ui, server)
